@@ -200,6 +200,30 @@ button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
 .hint{font-size:14px;font-weight:700;color:var(--ink-soft)}
 .scroll-cue{font-weight:800;font-size:14px;color:var(--ink);margin-top:4px}
 
+/* phones held sideways: everything must fit in ~375px of height, so the text moves to a side panel */
+@media (orientation: landscape) and (max-height: 540px){
+  .stage{min-height:0}
+  .gate-ui,.hero-ui{left:auto;right:0;top:0;bottom:0;width:min(52%,460px);overflow-y:auto;display:flex;flex-direction:column;
+    padding:calc(10px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) 12px;
+    background:linear-gradient(to left,var(--veil) 72%,transparent)}
+  .gate-inner,.hero-inner{margin:auto 0;gap:5px}
+  .gate-ui.gone{transform:translateX(40px)}
+  .hero-ui.pre{transform:translateX(24px)}
+  .gate-ui h2{font-size:25px}
+  .gate-sub{font-size:14px;line-height:1.35}
+  .problem{font-size:36px}
+  .keypad{gap:8px}
+  .key{height:40px;font-size:19px}
+  .feedback{min-height:2.7em;font-size:14px}
+  .date-note{font-size:12px}
+  .hero-ui h1{font-size:clamp(30px,5.6vw,46px)}
+  .rotator{min-height:2.7em}
+  .rot-text{font-size:18px}
+  .hero-lede{font-size:14px}
+  .scroll-cue{font-size:13px}
+}
+html.locked body{overflow:hidden}
+
 /* ---------- languages quiz ---------- */
 .quiz{display:grid;gap:18px}
 .quiz-top{display:flex;justify-content:space-between;gap:6px 12px;flex-wrap:wrap;font-size:14px;font-weight:800;color:var(--ink-soft)}
@@ -732,7 +756,9 @@ button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
   function burst(opts){
     if (reduceMotion || typeof window.confetti !== "function") return;
     const colors = ["--sun", "--flag", "--blush", "--celeste-soft", "--icing"].map(tok).filter(Boolean);
-    try { window.confetti(Object.assign({ particleCount: 110, spread: 75, startVelocity: 42, ticks: 220, origin: { y: .65 }, colors, zIndex: 100, disableForReducedMotion: true }, opts || {})); } catch (e) {}
+    const o = Object.assign({ particleCount: 110, spread: 75, startVelocity: 42, ticks: 220, origin: { y: .65 }, colors, zIndex: 100, disableForReducedMotion: true }, opts || {});
+    if (innerWidth < 700) o.particleCount = Math.round(o.particleCount * .6);  // phones: lighter
+    try { window.confetti(o); } catch (e) {}
   }
   const MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   const prettyDate = iso => { const [y, m] = iso.split("-").map(Number); return MONTHS[m - 1] + " de " + y; };
@@ -781,10 +807,20 @@ button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
   new MutationObserver(onTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   /* where the 3D focus point sits: centered in the free space above the overlay */
+  const sideMQ = window.matchMedia ? matchMedia("(orientation: landscape) and (max-height: 540px)") : { matches: false };
   function layoutFocus(animated){
     if (!bridge.hero) return;
     const st = stage.getBoundingClientRect();
     const ui = (state.opened ? heroUi : gateUi).getBoundingClientRect();
+    if (sideMQ.matches){
+      const freeW = Math.max(160, ui.left - st.left + 24);
+      const x = (freeW / 2) / st.width;
+      const scale = state.opened
+        ? Math.max(.4, Math.min(.95, (freeW / st.width) * 1.4))
+        : Math.max(.55, Math.min(1, (freeW / st.width) * 1.7));
+      try { bridge.hero.setFocus(x, .5, scale, !!animated); } catch (e) {}
+      return;
+    }
     const free = Math.max(140, ui.top - st.top + (state.opened ? 40 : 30));
     const y = Math.min(.5, (free / 2) / st.height);
     // opened: the orbit fills the free space but never gets wider than the screen
